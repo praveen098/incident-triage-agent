@@ -1,0 +1,25 @@
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Secrets
+.env
+.env.local
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Chroma persistent store (added Day 20)
+chroma_db/
