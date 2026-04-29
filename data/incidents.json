@@ -1,0 +1,272 @@
+[
+  {
+    "id": "INC-001",
+    "title": "Checkout service p99 latency spike after deploy",
+    "description": "Checkout API p99 latency rose from 200ms to 4s starting 14:00 UTC. ~12% of users seeing >3s response on /checkout. Error rate stable at <0.1%.",
+    "system": "checkout-service",
+    "severity": "P2",
+    "category": "performance",
+    "resolution": "Rolled back deploy v2.4.1. Root cause: missing DB index on orders.user_id added in the deploy's new query path."
+  },
+  {
+    "id": "INC-002",
+    "title": "Payment webhook 5xx surge",
+    "description": "Stripe webhook endpoint returning 502s for ~30% of requests over a 20-min window. Customer-facing impact: payment confirmations delayed.",
+    "system": "payments-service",
+    "severity": "P1",
+    "category": "outage",
+    "resolution": "Upstream load balancer health check was failing one of three pods. Restarted the pod, restored capacity. Added stricter readiness probe."
+  },
+  {
+    "id": "INC-003",
+    "title": "Auth service token validation failures",
+    "description": "Users intermittently logged out across all services. JWT validation failing with 'signature verification failed'.",
+    "system": "auth-service",
+    "severity": "P1",
+    "category": "outage",
+    "resolution": "Key rotation script ran early due to cron misconfiguration. Old key removed before clients refreshed. Manual rollback to previous key, fixed cron."
+  },
+  {
+    "id": "INC-004",
+    "title": "Customer PII exposed in error logs",
+    "description": "Error logs in Datadog contained full credit card numbers from a malformed payment request handler. Logs accessible to all engineers.",
+    "system": "payments-service",
+    "severity": "P1",
+    "category": "security",
+    "resolution": "Purged affected log indices. Patched logger to redact card numbers. Filed regulatory notification per PCI process."
+  },
+  {
+    "id": "INC-005",
+    "title": "Search index out of sync",
+    "description": "Product search returning results for items that no longer exist. ~3% of queries showing stale data 24h after delete.",
+    "system": "search-service",
+    "severity": "P3",
+    "category": "data_integrity",
+    "resolution": "Kafka consumer lag on the deletes topic; consumer pod OOM-killed and not restarted. Restarted pod, replayed delete events, increased memory limits."
+  },
+  {
+    "id": "INC-006",
+    "title": "Database connection pool exhaustion",
+    "description": "User profile service throwing 'connection pool exhausted' errors. Login flow degraded; 8% of login attempts failing.",
+    "system": "user-service",
+    "severity": "P2",
+    "category": "performance",
+    "resolution": "A new admin dashboard query was holding connections for 30+ seconds. Added query timeout, increased pool size as buffer, asked dashboard team to fix the slow query."
+  },
+  {
+    "id": "INC-007",
+    "title": "Failed deploy left old + new pods running",
+    "description": "Rolling deploy of inventory-service got stuck halfway. 50% of pods on v1.8, 50% on v1.9. New schema column being read by v1.9 caused 5xx on requests routed to v1.8.",
+    "system": "inventory-service",
+    "severity": "P2",
+    "category": "deployment_failure",
+    "resolution": "Force-rolled back all pods to v1.8. Identified that the schema migration shouldn't have shipped before backwards-compatible release. Updated deploy checklist."
+  },
+  {
+    "id": "INC-008",
+    "title": "Brute force login attempts from single IP",
+    "description": "100k+ failed logins against random usernames from a single IP in 10 min. WAF rate limit didn't trigger.",
+    "system": "auth-service",
+    "severity": "P2",
+    "category": "security",
+    "resolution": "Manually blocked IP at WAF. Found rate limit rule was scoped to authenticated requests only. Added pre-auth rate limit rule."
+  },
+  {
+    "id": "INC-009",
+    "title": "Email service queue backed up",
+    "description": "Transactional emails (password resets, order confirmations) delayed by ~45 min. Queue depth at 80k, normal is <100.",
+    "system": "notifications-service",
+    "severity": "P3",
+    "category": "performance",
+    "resolution": "SES sending quota hit due to a marketing batch sent through the same account. Moved marketing to separate SES identity, raised transactional quota."
+  },
+  {
+    "id": "INC-010",
+    "title": "Duplicate orders created on retry",
+    "description": "~50 customers reported being charged twice. Order service's retry logic missing idempotency key on POST /orders.",
+    "system": "order-service",
+    "severity": "P1",
+    "category": "data_integrity",
+    "resolution": "Issued refunds for duplicates. Added idempotency key requirement to /orders endpoint. Backfilled key generation in client SDK."
+  },
+  {
+    "id": "INC-011",
+    "title": "TLS cert expired on api.company.com",
+    "description": "Public API returning cert errors to all clients. Auto-renewal failed silently 30 days ago.",
+    "system": "api-gateway",
+    "severity": "P1",
+    "category": "outage",
+    "resolution": "Manually renewed cert. Investigation: cert-manager service account lost permissions in a recent IAM cleanup. Restored permissions, added cert-expiry alerting at 14d."
+  },
+  {
+    "id": "INC-012",
+    "title": "S3 bucket misconfigured as public",
+    "description": "User-uploaded receipt images bucket was public-read for 6 hours. ~12k images uploaded during window.",
+    "system": "uploads-service",
+    "severity": "P1",
+    "category": "security",
+    "resolution": "Made bucket private. Audited access logs; no enumeration patterns detected. Added Terraform policy to block public ACL on any new bucket."
+  },
+  {
+    "id": "INC-013",
+    "title": "Memory leak in recommendation worker",
+    "description": "Recommendation worker pods OOM-killed every ~6 hours. Recommendations falling back to defaults during restarts.",
+    "system": "recommendations-service",
+    "severity": "P3",
+    "category": "performance",
+    "resolution": "Leak in caching library when TTL was set to 0 (interpreted as 'never expire'). Set explicit 1h TTL, upgraded library to version with the bug fix."
+  },
+  {
+    "id": "INC-014",
+    "title": "Kafka consumer group stuck",
+    "description": "Analytics events not being consumed. Consumer group offset hadn't advanced in 2 hours. Dashboard data 2h stale.",
+    "system": "analytics-pipeline",
+    "severity": "P3",
+    "category": "data_integrity",
+    "resolution": "Poison pill message in topic. Skipped the offset, root-caused the malformed event upstream, added schema validation at producer."
+  },
+  {
+    "id": "INC-015",
+    "title": "Mobile app crashloop on launch",
+    "description": "iOS app v4.2.0 crashing on launch for 100% of users. Android unaffected. Released 30 min ago.",
+    "system": "mobile-ios",
+    "severity": "P1",
+    "category": "deployment_failure",
+    "resolution": "Force feature flag off via remote config. Crash was a nil-unwrap on a missing config key. Pulled v4.2.0 from App Store, shipped v4.2.1 with the fix."
+  },
+  {
+    "id": "INC-016",
+    "title": "Cache stampede on homepage",
+    "description": "Homepage load times went from 200ms to 8s. CDN cache expired during a traffic spike, all requests hit origin simultaneously.",
+    "system": "web-frontend",
+    "severity": "P2",
+    "category": "performance",
+    "resolution": "Manually warmed cache. Added cache key jitter and stale-while-revalidate to prevent simultaneous expiry."
+  },
+  {
+    "id": "INC-017",
+    "title": "Internal admin tool exposed externally",
+    "description": "Admin dashboard reachable from public internet for 3 days due to a misconfigured ingress rule.",
+    "system": "admin-tools",
+    "severity": "P1",
+    "category": "security",
+    "resolution": "Updated ingress to require VPN. Audited access logs; only internal IPs hit it during the window. Added a network policy linter to CI."
+  },
+  {
+    "id": "INC-018",
+    "title": "Background job duplicate execution",
+    "description": "Daily billing job ran twice, charging some customers double. Cron and Kubernetes CronJob both configured for the same task.",
+    "system": "billing-service",
+    "severity": "P1",
+    "category": "data_integrity",
+    "resolution": "Issued refunds. Removed legacy cron entry. Added a distributed lock around the billing job as defence in depth."
+  },
+  {
+    "id": "INC-019",
+    "title": "Sudden Redis latency spike",
+    "description": "Redis p99 latency went from 1ms to 200ms across the cluster. Affected most read paths.",
+    "system": "redis-cluster",
+    "severity": "P2",
+    "category": "performance",
+    "resolution": "Noisy neighbour: a new analytics service was running KEYS * across the production cluster. Moved it to a read replica, banned KEYS in production via a config rule."
+  },
+  {
+    "id": "INC-020",
+    "title": "Webhook replay attack",
+    "description": "Inbound webhooks from a partner being replayed by an attacker. ~20k duplicate events processed.",
+    "system": "integrations-service",
+    "severity": "P2",
+    "category": "security",
+    "resolution": "Added HMAC signature verification with a 5-minute timestamp window. Deduped affected events from the past 24h."
+  },
+  {
+    "id": "INC-021",
+    "title": "Image upload service 502s",
+    "description": "Image uploads failing with 502 for ~15% of requests. Backend showing healthy.",
+    "system": "uploads-service",
+    "severity": "P3",
+    "category": "outage",
+    "resolution": "Nginx ingress had a 30s timeout but new image processing path was taking 35s for large files. Increased timeout, added async processing for files >5MB."
+  },
+  {
+    "id": "INC-022",
+    "title": "Reporting numbers off by 10x",
+    "description": "Daily revenue dashboard showing 10x actual revenue for the past 3 days. Finance flagged the discrepancy.",
+    "system": "reporting-pipeline",
+    "severity": "P2",
+    "category": "data_integrity",
+    "resolution": "ETL job had a join that fan-out duplicated rows after a schema change. Fixed the join, recomputed historical reports."
+  },
+  {
+    "id": "INC-023",
+    "title": "DDoS targeting login endpoint",
+    "description": "Login endpoint hitting 50k req/sec, normal is 200/sec. Legitimate users seeing degraded login.",
+    "system": "auth-service",
+    "severity": "P1",
+    "category": "security",
+    "resolution": "Enabled Cloudflare 'Under Attack' mode, rate limited by ASN. Coordinated with infra team for permanent rate limit rule."
+  },
+  {
+    "id": "INC-024",
+    "title": "Feature flag rollout broke account settings page",
+    "description": "Account settings page showing 500 for users in the 25% rollout group of new settings UI flag.",
+    "system": "web-frontend",
+    "severity": "P2",
+    "category": "deployment_failure",
+    "resolution": "Disabled the flag for everyone. Bug was a missing migration for a new user_preferences column. Shipped migration, re-enabled flag at 5%."
+  },
+  {
+    "id": "INC-025",
+    "title": "Slow query taking down read replicas",
+    "description": "Two of three read replicas marked unhealthy. A new analytics dashboard query was running 15-min full table scans.",
+    "system": "user-db",
+    "severity": "P2",
+    "category": "performance",
+    "resolution": "Killed the query. Added query timeout at the proxy. Asked the analytics team to use the dedicated analytics replica for ad-hoc queries."
+  },
+  {
+    "id": "INC-026",
+    "title": "Order export missing recent records",
+    "description": "Daily order export to data warehouse missing the last 4 hours of orders for the past week.",
+    "system": "data-export",
+    "severity": "P3",
+    "category": "data_integrity",
+    "resolution": "Export was using server-local time but DB timestamps were UTC. Fixed timezone handling, backfilled the missing records."
+  },
+  {
+    "id": "INC-027",
+    "title": "API rate limiter blocking legitimate clients",
+    "description": "Several enterprise customers reporting 429s on normal API usage. Rate limiter using IP-based limits, but customers are behind a corporate NAT.",
+    "system": "api-gateway",
+    "severity": "P2",
+    "category": "outage",
+    "resolution": "Switched rate limit key from IP to API key. Backfilled per-customer limits based on contract tiers."
+  },
+  {
+    "id": "INC-028",
+    "title": "Secrets rotation broke service-to-service auth",
+    "description": "After a routine vault secret rotation, several services lost ability to call each other. Cascading 500s across multiple services.",
+    "system": "platform",
+    "severity": "P1",
+    "category": "outage",
+    "resolution": "Rolled back the rotation. Found that several services hardcoded the old secret value in config rather than reading from vault. Audited and fixed."
+  },
+  {
+    "id": "INC-029",
+    "title": "Database failover took 12 minutes",
+    "description": "Primary DB went down. Failover to replica took 12 min instead of expected 30 sec. Full outage during that window.",
+    "system": "user-db",
+    "severity": "P1",
+    "category": "outage",
+    "resolution": "Replica was lagging due to a long-running transaction blocking replay. Killed the transaction, completed failover. Added monitoring on replication lag."
+  },
+  {
+    "id": "INC-030",
+    "title": "Canary deploy not catching regression",
+    "description": "Bug shipped to 100% despite passing canary phase. Canary was getting near-zero traffic due to load balancer config drift.",
+    "system": "deploy-pipeline",
+    "severity": "P2",
+    "category": "deployment_failure",
+    "resolution": "Rolled back. Fixed canary traffic routing. Added a deploy-blocking check that verifies canary is actually receiving traffic before promoting."
+  }
+]
