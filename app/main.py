@@ -1,18 +1,20 @@
 """
 Incident Triage Agent — FastAPI app.
 
-Day 19: /triage endpoint accepts a real request body but returns a
-hardcoded response. The endpoint signature and response shape stay
-stable from this point on — Day 20-21 only swap out the function body.
+Day 21: /triage now runs the real RAG flow. Hardcoded response is gone.
 """
+from dotenv import load_dotenv
+load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from app.schemas import IncidentRequest, TriageResponse
+from app import triage
+from app.llm import LLMError
 
 app = FastAPI(
     title="Incident Triage Agent",
     description="RAG-based incident triage suggestions. Status: in active development.",
-    version="0.0.2",
+    version="0.0.3",
 )
 
 
@@ -22,7 +24,7 @@ def root():
     return {
         "service": "incident-triage-agent",
         "status": "alive",
-        "version": "0.0.2",
+        "version": "0.0.3",
     }
 
 
@@ -33,22 +35,20 @@ def health():
 
 
 @app.post("/triage", response_model=TriageResponse)
-def triage(request: IncidentRequest) -> TriageResponse:
+def triage_endpoint(request: IncidentRequest) -> TriageResponse:
     """
     Suggest a triage (severity, category, action) for an incoming incident.
 
-    Day 19: returns a hardcoded response regardless of input.
-    Day 20: will embed the request and retrieve similar past incidents.
-    Day 21: will pass retrieval + request to an LLM for a real suggestion.
+    Pipeline:
+      1. Embed the description, retrieve top-3 similar past incidents
+      2. Build prompt with retrieved incidents as grounded context
+      3. Call gpt-4o-mini with structured-output constraint to TriageResponse
+      4. Return the validated response
     """
-    # TODO(Day 20): embed request.description and retrieve top-k from Chroma.
-    # TODO(Day 21): pass retrieved incidents + request to LLM, parse response.
-
-    return TriageResponse(
-        severity="P3",
-        category="performance",
-        recommended_action="Acknowledge in #incidents, gather metrics for the affected service, "
-                           "page the service owner if error rate exceeds 1%.",
-        reasoning="Hardcoded stub response — real retrieval-augmented logic lands Day 20-21.",
-        similar_incidents=[],
-    )
+    try:
+        return triage.run(request)
+    except LLMError as e:
+        # LLM unreachable, refused, or returned unparseable output.
+        # 503 because this is a transient upstream-dependency failure,
+        # not a client error — the request itself was valid.
+        raise HTTPException(status_code=503, detail=f"Triage service unavailable: {e}")
