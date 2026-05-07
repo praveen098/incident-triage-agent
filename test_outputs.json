@@ -1,0 +1,139 @@
+[
+  {
+    "label": "outage_strong_match",
+    "description": "Our Stripe webhook integration started returning 502 errors about 15 minutes ago. Roughly 40% of incoming webhooks failing. Customers reporting that payment confirmations are delayed.",
+    "expected_category": "outage",
+    "notes": "Should match INC-002. P1 or P2 \u2014 customer-facing payments outage.",
+    "elapsed_seconds": 4.66,
+    "status_code": 200,
+    "response": {
+      "severity": "P1",
+      "category": "outage",
+      "recommended_action": "Investigate the Stripe webhook service for potential upstream issues causing the 502 errors. Check the health of the load balancer and the status of the service pods.",
+      "reasoning": "The new incident involves a significant outage affecting 40% of incoming webhooks, which is critical as it delays payment confirmations for customers. This aligns closely with past incident INC-002, where a surge of 5xx errors was resolved by addressing a load balancer issue. Given the impact on customer payments, this incident is classified as P1.",
+      "similar_incidents": [
+        "INC-002"
+      ]
+    }
+  },
+  {
+    "label": "performance_post_deploy",
+    "description": "After deploying v3.2 of the search service this morning, p99 latency went from 80ms to 1200ms. Users reporting slow autocomplete. Error rate stable.",
+    "expected_category": "performance",
+    "notes": "Should pull INC-001 (latency after deploy). P2 reasonable.",
+    "elapsed_seconds": 3.33,
+    "status_code": 200,
+    "response": {
+      "severity": "P2",
+      "category": "performance",
+      "recommended_action": "Investigate the recent deploy for potential performance regressions. Consider rolling back to the previous version if necessary.",
+      "reasoning": "The new incident mirrors the pattern of INC-001, where a deploy caused a significant latency spike. Given that the p99 latency increased dramatically after the deploy and users are experiencing slow autocomplete, this indicates a performance issue that requires immediate attention, similar to past incidents that were categorized as P2.",
+      "similar_incidents": [
+        "INC-001"
+      ]
+    }
+  },
+  {
+    "label": "security_data_exposure",
+    "description": "Found out our user profile pictures S3 bucket has been public-readable for 2 hours due to a bad Terraform apply. Roughly 8000 profile pictures uploaded during the window.",
+    "expected_category": "security",
+    "notes": "Should pull INC-012. P1 \u2014 data exposure.",
+    "elapsed_seconds": 3.06,
+    "status_code": 200,
+    "response": {
+      "severity": "P1",
+      "category": "security",
+      "recommended_action": "Immediately make the S3 bucket private and audit access logs for any unauthorized access during the exposure period.",
+      "reasoning": "This incident is similar to INC-012, where a public S3 bucket led to a P1 severity due to potential data exposure. Given that the user profile pictures bucket has been public-readable for 2 hours, this poses a significant risk of unauthorized access to sensitive user data, warranting immediate action.",
+      "similar_incidents": [
+        "INC-012"
+      ]
+    }
+  },
+  {
+    "label": "data_integrity_dupe",
+    "description": "Customers reporting being charged twice for orders placed in the last hour. Initial check shows ~30 affected orders. Order service may have an idempotency issue.",
+    "expected_category": "data_integrity",
+    "notes": "Should pull INC-010 (duplicate orders). P1 \u2014 financial impact.",
+    "elapsed_seconds": 3.17,
+    "status_code": 200,
+    "response": {
+      "severity": "P1",
+      "category": "data_integrity",
+      "recommended_action": "Investigate the order service for idempotency issues and check for duplicate order entries in the database.",
+      "reasoning": "This incident closely mirrors INC-010, where duplicate orders were created due to an idempotency issue. Given that customers are reporting being charged twice, this indicates a critical data integrity problem that needs immediate attention. The severity is P1 because it directly affects customer transactions and could lead to financial discrepancies.",
+      "similar_incidents": [
+        "INC-010"
+      ]
+    }
+  },
+  {
+    "label": "deployment_failure",
+    "description": "Latest deploy of mobile API got stuck mid-rollout. Half the pods on v4.1, half on v4.2. Schema mismatch causing 5xx for users routed to old pods.",
+    "expected_category": "deployment_failure",
+    "notes": "Should pull INC-007. P2 reasonable.",
+    "elapsed_seconds": 2.67,
+    "status_code": 200,
+    "response": {
+      "severity": "P1",
+      "category": "outage",
+      "recommended_action": "Immediately roll back the deployment to the last stable version to restore service for affected users.",
+      "reasoning": "The new incident describes a situation where half of the pods are running an older version (v4.1) that is causing 5xx errors for users. This aligns closely with INC-002, where a payment service experienced a 5xx surge due to a similar issue with pod readiness. Given that users are experiencing errors at scale, this incident is classified as P1 and categorized as an outage.",
+      "similar_incidents": [
+        "INC-002"
+      ]
+    }
+  },
+  {
+    "label": "no_good_match",
+    "description": "Our internal Confluence wiki has been intermittently slow for 2 days. Page loads taking 8-15 seconds. Only affects employees, not customers. Vendor support ticket open.",
+    "expected_category": "performance",
+    "notes": "No strong corpus match \u2014 internal vendor tool. Should reason about this honestly and not invent a similar_incidents match. Likely P3/P4.",
+    "elapsed_seconds": 2.86,
+    "status_code": 200,
+    "response": {
+      "severity": "P2",
+      "category": "performance",
+      "recommended_action": "Investigate the performance metrics for the Confluence instance and check for any resource bottlenecks. Coordinate with the vendor support for updates on the ticket.",
+      "reasoning": "The incident is categorized as P2 because it involves significant performance degradation affecting internal tools (Confluence wiki) but does not impact customer-facing services. This aligns with the pattern seen in similar past incidents where performance issues were addressed promptly. The similar incidents indicate that performance issues can be resolved with immediate investigation and collaboration with relevant teams.",
+      "similar_incidents": [
+        "INC-016",
+        "INC-006"
+      ]
+    }
+  },
+  {
+    "label": "very_short",
+    "description": "Login broken for everyone.",
+    "expected_category": "outage",
+    "notes": "Edge case: minimum-length input. Real on-call message style. Auth-related \u2014 should pull INC-003 or INC-023.",
+    "elapsed_seconds": 3.06,
+    "status_code": 200,
+    "response": {
+      "severity": "P1",
+      "category": "outage",
+      "recommended_action": "Immediately investigate the login service for errors or outages. Check logs for any recent changes or failures.",
+      "reasoning": "The new incident indicates that the login functionality is broken for everyone, which aligns with the severity of a P1 outage as it affects all users trying to authenticate. This is similar to past incidents like INC-003, where the auth service experienced token validation failures, leading to a complete outage of the login service. Given the critical nature of login functionality, this incident requires immediate attention.",
+      "similar_incidents": [
+        "INC-003"
+      ]
+    }
+  },
+  {
+    "label": "ambiguous_security_or_outage",
+    "description": "API gateway returning 429s for ~15% of legitimate enterprise traffic since this morning. No deploy. Customers asking if we're under attack or if our rate limiter is misconfigured.",
+    "expected_category": "outage",
+    "notes": "Could pull INC-027 (rate limiter blocking enterprise) OR INC-023 (DDoS). Watch which one wins and whether the LLM acknowledges the ambiguity.",
+    "elapsed_seconds": 3.34,
+    "status_code": 200,
+    "response": {
+      "severity": "P2",
+      "category": "outage",
+      "recommended_action": "Investigate the rate limiter configuration for the API gateway and check for any anomalies in traffic patterns. Consider temporarily adjusting rate limits to alleviate the 429 errors for affected customers.",
+      "reasoning": "The incident closely resembles INC-027, where legitimate clients were blocked by the API rate limiter, resulting in a P2 outage. The current situation involves 429 responses affecting ~15% of legitimate traffic, indicating significant performance degradation without complete service unavailability. Therefore, a P2 severity is appropriate, and the outage category fits as it impacts legitimate traffic.",
+      "similar_incidents": [
+        "INC-027"
+      ]
+    }
+  }
+]
